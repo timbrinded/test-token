@@ -1,18 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract Benoit is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ERC20Permit {
-    constructor(address initialOwner)
-        ERC20("Benoit", "BEN")
-        Ownable(initialOwner)
-        ERC20Permit("Benoit")
-    {
+contract bGBP is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20PausableUpgradeable, OwnableUpgradeable, ERC20PermitUpgradeable, UUPSUpgradeable {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address initialOwner) initializer public {
+        __ERC20_init("bGBP", "bGBP");
+        __ERC20Burnable_init();
+        __ERC20Pausable_init();
+        __Ownable_init(initialOwner);
+        __ERC20Permit_init("bGBP");
+        __UUPSUpgradeable_init();
+
         _mint(msg.sender, 1000 * 10 ** decimals());
     }
 
@@ -28,11 +38,28 @@ contract Benoit is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ERC20Permit {
         _mint(to, amount);
     }
 
+    // TODO: Add freeze function
+
+    // TODO: Add unfreeze function
+
+    // TODO: Add forceTransfer function
+
+    // TODO: Add forceBurn function
+
+
+    // ADMIN FUNCTIONS
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyOwner
+        override
+    {}
+
     // The following functions are overrides required by Solidity.
 
     function _update(address from, address to, uint256 value)
         internal
-        override(ERC20, ERC20Pausable)
+        override(ERC20Upgradeable, ERC20PausableUpgradeable)
     {
         super._update(from, to, value);
     }
