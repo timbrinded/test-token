@@ -115,5 +115,18 @@ contract TokenTest is Test {
         token.mint(testUser1, 1000 * 10 ** 18);
     }
 
-    // test to freeze assets
+    function test_recoverTokens() public {
+        uint256 amount = 1000 * 10 ** 18;
+        token.mint(address(this), amount);
+        token.transfer(testUser1, amount / 2);
+        token.transfer(address(token), amount / 2);
+
+        assertEq(token.balanceOf(address(this)), 0);
+        assertEq(token.balanceOf(testUser1), amount / 2);
+        assertEq(token.balanceOf(address(token)), amount / 2);
+
+        token.rescueERC20(token, address(this), amount / 2);
+        console.log("token.balanceOf(address(this))", token.balanceOf(address(this)));
+        assertEq(token.balanceOf(address(this)), amount / 2);
+    }
 }

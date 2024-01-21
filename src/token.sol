@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.21;
 
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20BurnableUpgradeable} from
@@ -10,10 +10,10 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {ERC20PermitUpgradeable} from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Bannable} from "./Bannable.sol";
-
 
 contract stableToken is
     Initializable,
@@ -25,10 +25,6 @@ contract stableToken is
     UUPSUpgradeable,
     Bannable
 {
-    // using EnumerableSet for EnumerableSet.AddressSet;
-
-    // EnumerableSet.AddressSet private banList;
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -55,22 +51,17 @@ contract stableToken is
         _mint(to, amount);
     }
 
-    // TODO: Add freeze function
+    function rescueERC20(IERC20 tokenContract, address to, uint256 amount) external onlyOwner {
+        tokenContract.transfer(to, amount);
+    }
 
-    // TODO: Add unfreeze function
-
-    // TODO: Add forceBurn function
-
-    // TODO: Add Return token function
-
-    
     // FUNCTION OVERRIDES
 
-    function transfer(address to,uint256 value) public override notBanned(msg.sender) notBanned(to) returns (bool) {
+    function transfer(address to, uint256 value) public override notBanned(msg.sender) notBanned(to) returns (bool) {
         return super.transfer(to, value);
     }
 
-    function transferFrom(address from,address to,uint256 value)
+    function transferFrom(address from, address to, uint256 value)
         public
         override
         notBanned(msg.sender)
@@ -81,38 +72,15 @@ contract stableToken is
         return super.transferFrom(from, to, value);
     }
 
-    function approve(address spender,uint256 value) public override notBanned(msg.sender) notBanned(spender) returns (bool) {
+    function approve(address spender, uint256 value)
+        public
+        override
+        notBanned(msg.sender)
+        notBanned(spender)
+        returns (bool)
+    {
         return super.approve(spender, value);
     }
-
-    // function increaseAllowance(address spender,uint256 addedValue)
-    //     public
-    //     override
-    //     notBanned(msg.sender)
-    //     notBanned(spender)
-    //     returns (bool)
-    // {
-    //     return super.increaseAllowance(spender, addedValue);
-    // }
-
-    // function decreaseAllowance(address spender,uint256 subtractedValue)
-    //     public
-    //     override
-    //     notBanned(msg.sender)
-    //     notBanned(spender)
-    //     returns (bool)
-    // {
-    //     return super.decreaseAllowance(spender, subtractedValue);
-    // }
-
-    // function _beforeTokenTransfer(address from,address to,uint256 amount)
-    //     internal
-    //     override(ERC20Upgradeable, ERC20PausableUpgradeable)
-    //     notBanned(from)
-    //     notBanned(to)
-    // {
-    //     super._beforeTokenTransfer(from, to, amount);
-    // }
 
     // ADMIN FUNCTIONS
 

@@ -37,7 +37,7 @@ abstract contract Bannable is OwnableUpgradeable {
 
     modifier notBanned(address account) {
         if (isBanned(account)) {
-            revert AccountBanned(); // Use the custom error instead of require
+            revert AccountBanned();
         }
         _;
     }

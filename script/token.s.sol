@@ -25,7 +25,11 @@ contract TokenScript is Script {
         );
 
         // Deploy the proxy contract
-        new ERC1967Proxy(address(implementation), initData);
+        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
+
+        // TODO: transfer ownership to multisig
+        // address multisig = 0x1234...
+        // proxy.transferOwnership(multisig);
         vm.stopBroadcast();
     }
 }
