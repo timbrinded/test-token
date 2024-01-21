@@ -25,7 +25,7 @@ contract TokenScript is Script {
         );
 
         // Deploy the proxy contract
-        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
+        new ERC1967Proxy(address(implementation), initData);
         vm.stopBroadcast();
     }
 }
