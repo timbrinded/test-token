@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.21;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {stableToken} from "../src/token.sol";
@@ -25,9 +25,10 @@ contract TokenScript is Script {
         );
 
         // Deploy the proxy contract
-        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
+        new ERC1967Proxy(address(implementation), initData);
 
         // TODO: transfer ownership to multisig
+        // ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         // address multisig = 0x1234...
         // proxy.transferOwnership(multisig);
         vm.stopBroadcast();

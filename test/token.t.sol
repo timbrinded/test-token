@@ -126,7 +126,6 @@ contract TokenTest is Test {
         assertEq(token.balanceOf(address(token)), amount / 2);
 
         token.rescueERC20(token, address(this), amount / 2);
-        console.log("token.balanceOf(address(this))", token.balanceOf(address(this)));
         assertEq(token.balanceOf(address(this)), amount / 2);
     }
 }
