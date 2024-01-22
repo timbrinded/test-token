@@ -6,8 +6,8 @@ This repo is a proof of concept for a stable token using standard OZ libraries.
 
 ## Deployed Example
 
-- **Proxy Contract**: Stores all the balances and data for the token  [0x58480aC92EF81C39396eC8f8D1695e13c7E4EFD3](https://sepolia.etherscan.io/address/0x58480aC92EF81C39396eC8f8D1695e13c7E4EFD3#code)
-- **Implementation Contract**: Location where all the logic sits. Can be replaced/upgraded with new contracts [0xD025460c4f877bd1f709e1f06545c2224B3aa9B6](https://sepolia.etherscan.io/address/0xd025460c4f877bd1f709e1f06545c2224b3aa9b6#code)
+- **Proxy Contract**: Stores all the balances and data for the token  [0xd3003Ed9E97e8808BEF9dE8b3a381383B2Ef17f9](https://sepolia.etherscan.io/address/0xd3003Ed9E97e8808BEF9dE8b3a381383B2Ef17f9#code)
+- **Implementation Contract**: Location where all the logic sits. Can be replaced/upgraded with new contracts [0x6cd1ebFBC1dBc24A68736F7439dd46AdE5662E44](https://sepolia.etherscan.io/address/0x6cd1ebFBC1dBc24A68736F7439dd46AdE5662E44#code)
 
 
 ---
