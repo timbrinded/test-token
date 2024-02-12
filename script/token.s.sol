@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.21;
+// SPDX-License-Identifier: GPL-3.0-only
+pragma solidity ^0.8.19;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {stableToken} from "../src/token.sol";
