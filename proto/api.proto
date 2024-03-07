@@ -1,0 +1,591 @@
+// Copyright 2023 MPCVault (MetaLoop INC)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package mpcvault.platform.v1;
+
+import "google/protobuf/wrappers.proto";
+import "mpcvault/platform/v1/error.proto";
+
+option go_package = "go.mpcvault.com/genproto/mpcvaultapis/platform/v1;platform";
+option java_multiple_files = true;
+option java_outer_classname = "PlatformProto";
+option java_package = "com.mpcvault.platform.v1";
+
+
+service PlatformAPI {
+    // CreateSigningRequest creates a signing request. The signing request can be completed using the MPCVault mobile app or using the API client signer.
+    rpc CreateSigningRequest (CreateSigningRequestRequest) returns (CreateSigningRequestResponse);
+
+    // RejectSigningRequest rejects a signing request. Once a signing request is rejected, it cannot be re-opened.
+    rpc RejectSigningRequest (RejectSigningRequestRequest) returns (RejectSigningRequestResponse);
+
+    // GetSigningRequestDetails returns the details of a signing request.
+    // It will contain the signing request status and the transaction hash if the signing request was completed.
+    rpc GetSigningRequestDetails (GetSigningRequestDetailsRequest) returns (GetSigningRequestDetailsResponse);
+
+    // CreateBatchPayment creates a batch payment. You will need to complete the batch payment using the MPCVault web app.
+    rpc CreateBatchPayment (CreateBatchPaymentRequest) returns (CreateBatchPaymentResponse);
+
+    // GetBatchPaymentDetails returns the details of a batch payment including the signing requests.
+    rpc GetBatchPaymentDetails (GetBatchPaymentDetailsRequest) returns (GetBatchPaymentDetailsResponse);
+
+    // CreateWallet creates a wallet. Wallets created will be EOA wallets. You are responsible for completing a sanity tests before using the wallet.
+    // While the response contains the public key, you are strongly discouraged from using it to generate the wallet address yourself. Instead, use the address returned in the response.
+    rpc CreateWallet (CreateWalletRequest) returns (CreateWalletResponse);
+
+    // ExecuteSigningRequests signs a signing request. The signing request can be created via the API or manually.
+    rpc ExecuteSigningRequests (ExecuteSigningRequestsRequest) returns (ExecuteSigningRequestsResponse);
+}
+
+message CreateWalletRequest {
+    // vault_uuid is the UUID of the vault that the wallet will be created in.
+    // You can find it in the settings page of your vault on the web.
+    string vault_uuid = 1;
+    // callback_client_signer_public_key is the public key of the api client signer.
+    // It is used to identify the where we should send the callback to.
+    string callback_client_signer_public_key = 2;
+    // network_type is the type of the network.
+    NetworkType network_type = 3;
+    // (optional) ref is the customer reference field for the wallet. It has to be unique if not empty.
+    // max length is 500 characters.
+    string ref = 4;
+}
+enum NetworkType {
+    NETWORK_TYPE_UNKNOWN = 0;
+    NETWORK_TYPE_EVM = 1;
+    NETWORK_TYPE_BITCOIN = 2;
+    NETWORK_TYPE_TRON = 3;
+    NETWORK_TYPE_APTOS = 4;
+    NETWORK_TYPE_SUI = 5;
+    NETWORK_TYPE_SOLANA = 6;
+}
+enum KeyType {
+    KEY_TYPE_UNSPECIFIED = 0;
+    KEY_TYPE_ECC_SECP256K1 = 1;
+    KEY_TYPE_ECC_ED25519 = 2;
+}
+message Wallet {
+    // vault_uuid is the UUID of the vault that the wallet was created in.
+    string vault_uuid = 1;
+    // key_type is the type of the key.
+    KeyType key_type = 2;
+    // key_path is the path of the key.
+    string key_path = 3;
+    // public_key is the public key of the key.
+    bytes public_key = 4;
+    // network_type is the type of the network.
+    NetworkType network_type = 5;
+    // address is the address of the wallet in the network.
+    string address = 6;
+    // ref is unique identifier for the wallet as configured by the user.
+    string ref = 7;
+}
+message CreateWalletResponse {
+    Wallet details = 1;
+    Error error = 2;
+}
+
+message ExecuteSigningRequestsRequest {
+    // uuid is the UUID of the signing request.
+    // Currently only signing requests of API wallets are supported.
+    string uuid = 1;
+}
+message ExecuteSigningRequestsResponse {
+    Error error = 1;
+    // tx_hash is the hash of the signed transaction, only set if status is STATUS_SUCCEEDED.
+    // This does not mean that the transaction it self is successful. It only means that the signing request has been signed.
+    string tx_hash = 2;
+    // signatures is the signatures of the raw message, only set if status is STATUS_SUCCEEDED.
+    SignatureContainer signatures = 3;
+}
+
+message SignatureContainer {
+    message SignResponse {
+        oneof signature {
+            ECDSASignature ecdsa_signature = 1;
+            // Ed25519 signatures are 64 bytes long, sig = R_bytes || s_bytes
+            // R_bytes is the canonical 32-byte encoding of v, according to RFC 8032, Section 5.1.2
+            bytes eddsa_signature = 2;
+        }
+    }
+    message ECDSASignature {
+        string R = 1;
+        string S = 2;
+        string V = 3;
+    }
+    repeated SignResponse signatures = 1;
+}
+
+message EVMMessage {
+    enum Type {
+        TYPE_UNSPECIFIED = 0;
+        TYPE_PERSONAL_SIGN = 1;
+        TYPE_SIGN_TYPED_DATA = 2;
+    }
+    uint64 chain_id = 1;
+    // from is the address of the sender. It has to be in this vault.
+    string from = 2;
+    Type type = 3;
+    bytes content = 4;
+}
+
+message AptosMessage {
+    enum Type {
+        TYPE_UNSPECIFIED = 0;
+        TYPE_DEFAULT = 1;
+    }
+    message Message {
+        google.protobuf.StringValue address = 1;
+        google.protobuf.StringValue application = 2;
+        google.protobuf.Int64Value chain_id = 3;
+        string message = 4;
+        string nonce = 5;
+    }
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    Type type = 2;
+    Message content = 3;
+}
+
+message SolanaMessage {
+    enum Type {
+        TYPE_UNSPECIFIED = 0;
+        TYPE_DEFAULT = 1;
+    }
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    Type type = 2;
+    bytes content = 3;
+}
+
+message RawMessage {
+    // from is the wallet address of the key pair that we uses to sign the message. The wallet has to be in this vault.
+    // We will use the key's algorithm to sign the message.
+    string from = 1;
+    // content is the raw message content in bytes.
+    bytes content = 2;
+    // ecdsa_hash_function is the hash function to use for signing the message. Required if the key is ECDSA.
+    // This field will be ignored if the key is not ECDSA.
+    ECDSAHashFunction ecdsa_hash_function = 3;
+}
+
+enum ECDSAHashFunction {
+    ECDSA_HASH_FUNCTION_UNSPECIFIED = 0;
+    ECDSA_HASH_FUNCTION_USE_MESSAGE_DIRECTLY = 1;
+    ECDSA_HASH_FUNCTION_SHA256 = 2;
+}
+
+// EVMGas is the gas fee settings for an EVM transaction.
+message EVMGas {
+    // max_fee is the maximum fee that the user is willing to pay, denominated in wei.
+    google.protobuf.StringValue max_fee = 1;
+    // max_priority_fee is the maximum priority fee that the user is willing to pay for EIP-1559 transactions, denominated in wei.
+    // leave this field empty if you do not want to use EIP-1559.
+    google.protobuf.StringValue max_priority_fee = 2;
+    // gas_limit is the maximum amount of gas that the tx is allowed to consume.
+    google.protobuf.StringValue gas_limit = 3;
+}
+
+message EVMSendNative {
+    // chain_id is the chain id of the network.
+    uint64 chain_id = 1;
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 2;
+    // to is the address of the recipient.
+    string to = 3;
+    // value is the amount of the native token to send, denominated in wei.
+    string value = 4;
+    EVMGas gas_fee = 5;
+    // nonce is the nonce of the transaction. If this field is not set, we will use the next nonce of the sender.
+    // when chain_id is a custom chain, this field is required.
+    google.protobuf.Int64Value nonce = 6;
+}
+
+message EVMSendERC20 {
+    // chain_id is the chain id of the network.
+    uint64 chain_id = 1;
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 2;
+    // to is the address of the recipient.
+    string to = 3;
+    // token_contract_address is the address of the ERC20 token contract.
+    string token_contract_address = 4;
+    // amount is the amount of tokens to send. You should use whole integer representation. [amount * 10^decimals]
+    // We will use the contract's decimals to convert the amount.
+    string amount = 5;
+    EVMGas gas_fee = 6;
+    // nonce is the nonce of the transaction. If this field is not set, we will use the next nonce of the sender.
+    // when chain_id is a custom chain, this field is required.
+    google.protobuf.Int64Value nonce = 7;
+}
+
+message EVMSendCustom {
+    // chain_id is the chain id of the network.
+    uint64 chain_id = 1;
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 2;
+    // to is the address of the recipient.
+    string to = 3;
+    // value is the amount of the native token to send, denominated in wei.
+    string value = 4;
+    bytes input = 5;
+    EVMGas gas_fee = 6;
+    // nonce is the nonce of the transaction. If this field is not set, we will use the next nonce of the sender.
+    // when chain_id is a custom chain, this field is required.
+    google.protobuf.Int64Value nonce = 7;
+}
+
+message BTCSendNative {
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    // to is the address of the recipient.
+    string to = 2;
+    // amount is the amount of the native token to send, denominated in satoshi.
+    string amount = 3;
+    // network_fee is the network fee that the user is willing to pay, denominated in sat/b.
+    uint64 network_fee = 4;
+}
+
+message TronSendNative {
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    // to is the address of the recipient.
+    string to = 2;
+    // value is the amount of the native token to send, denominated in sun.
+    string value = 3;
+}
+
+message TronSendTRC10 {
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    // to is the address of the recipient.
+    string to = 2;
+    // asset_name identifies the token to be sent.
+    string asset_name = 3;
+    // amount is the amount of tokens to send. You should use whole integer representation. [amount * 10^decimals]
+    string amount = 4;
+}
+
+message TronSendTRC20 {
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    // to is the address of the recipient.
+    string to = 2;
+    // contract_address is the address of the token.
+    string contract_address = 3;
+    // amount is the amount of tokens to send. You should use whole integer representation. [amount * 10^decimals]
+    string amount = 4;
+    // (optional) fee_limit is the maximum fee that the user is willing to pay, denominated in sun.
+    google.protobuf.StringValue fee_limit = 5;
+}
+
+message AptosGas {
+    // (optional) max_gas_amount is the maximum gas units that the transaction can use
+    // https://aptos.dev/concepts/gas-txn-fee/#unit-of-gas
+    google.protobuf.StringValue max_gas_amount = 1;
+    // (optional) gas_unit_price is the price that the user is willing to pay, denominated in octa.
+    google.protobuf.StringValue gas_unit_price = 2;
+}
+
+message AptosSendNative {
+    // please use 1 for mainnet. MPCVault does not support Aptos testnet at the moment.
+    uint64 chain_id = 1;
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 2;
+    // to is the address of the recipient.
+    string to = 3;
+    // value is the amount of the native token to send, denominated in octa.
+    string value = 4;
+    // (optional) specify the gas fee for the transaction.
+    AptosGas gas_fee = 5;
+}
+
+message AptosSendCoin {
+    // please use 1 for mainnet. MPCVault does not support Aptos testnet at the moment.
+    uint64 chain_id = 1;
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 2;
+    // to is the address of the recipient.
+    string to = 3;
+    // coin_tag identifies the coin to be sent.
+    string coin_tag = 4;
+    // amount is the amount of tokens to send. You should use whole integer representation. [amount * 10^decimals]
+    string amount = 5;
+    // (optional) specify the gas fee for the transaction.
+    AptosGas gas_fee = 6;
+}
+
+message AptosSendCustom {
+    // please use 1 for mainnet. MPCVault does not support Aptos testnet at the moment.
+    uint64 chain_id = 1;
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 2;
+    // payload can be JSON or the bcs-serialized bytes of the transaction.
+    bytes payload = 3;
+    // (optional) specify the gas fee for the transaction.
+    AptosGas gas_fee = 4;
+}
+
+message SuiGas {
+    // (optional) budget is the maximum fee that the user is willing to pay, denominated in mist.
+    google.protobuf.StringValue budget = 1;
+    // (optional) price is the price that the user is willing to pay, denominated in mist.
+    google.protobuf.StringValue price = 2;
+}
+
+message SuiSendNative {
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    // to is the address of the recipient.
+    string to = 2;
+    // value is the amount of the native token to send, denominated in mist.
+    string value = 3;
+    // (optional) specify the gas fee for the transaction.
+    SuiGas gas_fee = 4;
+}
+
+message SuiSendCoin {
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    // to is the address of the recipient.
+    string to = 2;
+    // coin_tag identifies the coin to be sent.
+    string coin_tag = 3;
+    // amount is the amount of coins to send. You should use whole integer representation. [amount * 10^decimals]
+    string amount = 4;
+    // (optional) specify the gas fee for the transaction.
+    SuiGas gas_fee = 5;
+}
+
+message SuiSendCustom {
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    // payload can be JSON or the bcs-serialized bytes of the transaction.
+    bytes payload = 2;
+}
+
+message SolanaSendNative {
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    // to is the account address of the recipient.
+    string to = 2;
+    // value is the amount of the native token to send, denominated in lamports.
+    string value = 3;
+}
+
+message SolanaSendSPLToken {
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    // to is the account address of the recipient.
+    string to = 2;
+    // mint_address is the address of the token.
+    string mint_address = 3;
+    // amount is the amount of tokens to send. You should use whole integer representation. [amount * 10^decimals]
+    string amount = 4;
+}
+
+message CreateSigningRequestRequest {
+    // type is the type of the signing request. It is a oneof field.
+    oneof type {
+        EVMSendNative evm_send_native = 1;
+        EVMSendERC20 evm_send_erc20 = 2;
+        EVMSendCustom evm_send_custom = 3;
+        BTCSendNative btc_send_native = 4;
+        TronSendNative tron_send_native = 5;
+        TronSendTRC10 tron_send_trc10 = 6;
+        TronSendTRC20 tron_send_trc20 = 7;
+        AptosSendNative aptos_send_native = 8;
+        AptosSendCoin aptos_send_coin = 9;
+        AptosSendCustom aptos_send_custom = 10;
+        SuiSendNative sui_send_native = 11;
+        SuiSendCoin sui_send_coin = 12;
+        SuiSendCustom sui_send_custom = 13;
+        SolanaSendNative solana_send_native = 14;
+        SolanaSendSPLToken solana_send_spl_token = 15;
+        EVMMessage evm_message = 16;
+        AptosMessage aptos_message = 17;
+        SolanaMessage solana_message = 18;
+        RawMessage raw_message = 19;
+    }
+    // notes is the transaction notes for the signing request.
+    google.protobuf.StringValue notes = 1000;
+    // vault_uuid is the UUID of the vault that the signing request will be created in.
+    google.protobuf.StringValue vault_uuid = 1001;
+    // callback_client_signer_public_key is the public key of the api client signer for callback
+    // It is used to identify the where we should send the callback to. If empty, we will show the signing request in the MPCVault mobile app for manual signing.
+    // Note that if the signing request is created by an api wallet, this field must be set as api wallets can only be signed by the api client signer at the moment.
+    google.protobuf.StringValue callback_client_signer_public_key = 1002;
+}
+
+message CreateSigningRequestResponse {
+    // signing_request is the signing request that was created.
+    SigningRequest signing_request = 1;
+    Error error = 2;
+}
+
+message RejectSigningRequestRequest {
+    string uuid = 1;
+}
+
+message RejectSigningRequestResponse {
+    Error error = 1;
+}
+
+message GetSigningRequestDetailsRequest {
+    string uuid = 1;
+}
+
+message GetSigningRequestDetailsResponse {
+    SigningRequest signing_request = 1;
+    Error error = 2;
+}
+
+message SigningRequest {
+    enum Status {
+        STATUS_UNSPECIFIED = 0;
+        STATUS_PENDING = 1;
+        STATUS_SUCCEEDED = 2;
+        STATUS_FAILED = 3;
+    }
+    // uuid is the unique identifier of the signing request.
+    string uuid = 1;
+    // status is the status of the signing request. STATUS_SUCCEEDED only means that the signing request has been signed.
+    // it does not mean that the transaction itself is successful.
+    Status status = 2;
+    // failed_reason is the reason why the signing request failed, only set if status is STATUS_FAILED.
+    string failed_reason = 3;
+    // tx_hash is the hash of the transaction, only set if status is STATUS_SUCCEEDED.
+    // This does not mean that the transaction it self is successful. It only means that the signing request has been signed.
+    string tx_hash = 4;
+    // creation_timestamp is the timestamp when the signing request was created.
+    uint64 creation_timestamp = 5;
+    oneof type {
+        EVMSendNative evm_send_native = 6;
+        EVMSendERC20 evm_send_erc20 = 7;
+        EVMSendCustom evm_send_custom = 8;
+        BTCSendNative btc_send_native = 9;
+        TronSendNative tron_send_native = 10;
+        TronSendTRC10 tron_send_trc10 = 11;
+        TronSendTRC20 tron_send_trc20 = 12;
+        AptosSendNative aptos_send_native = 13;
+        AptosSendCoin aptos_send_coin = 14;
+        AptosSendCustom aptos_send_custom = 15;
+        SuiSendNative sui_send_native = 16;
+        SuiSendCoin sui_send_coin = 17;
+        SuiSendCustom sui_send_custom = 18;
+        SolanaSendNative solana_send_native = 19;
+        SolanaSendSPLToken solana_send_spl_token = 20;
+        CreateWalletRequest create_wallet = 21;
+        EVMMessage evm_message = 22;
+        AptosMessage aptos_message = 23;
+        SolanaMessage solana_message = 24;
+        RawMessage raw_message = 25;
+    }
+    // vault_uuid is the UUID of the vault that the signing request was created in.
+    google.protobuf.StringValue vault_uuid = 1000;
+    // callback_client_signer_public_key is the public key of the api client signer for callback. This field can be empty.
+    google.protobuf.StringValue callback_client_signer_public_key = 1001;
+}
+
+message BatchPaymentRecipient {
+    // address is the address of the recipient.
+    string address = 1;
+    // amount is the amount of the tokens to send.
+    // For native tokens such as ether/btc, the amount is denominated in wei/satoshi.
+    // For ERC20 tokens you should use whole integer representation. [amount * 10^decimals]
+    // For bitcoin, the amount is denominated in satoshi.
+    string amount = 2;
+    // notes is a note for this entry in the batch payment.
+    google.protobuf.StringValue notes = 3;
+}
+
+message EVMBatchSendNative {
+    uint64 chain_id = 1;
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 2;
+    repeated BatchPaymentRecipient recipients = 3;
+}
+
+message EVMBatchSendERC20 {
+    uint64 chain_id = 1;
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 2;
+    // token_contract_address is the address of the ERC20 token contract.
+    string token_contract_address = 3;
+    repeated BatchPaymentRecipient recipients = 4;
+}
+
+message BTCBatchSendNative {
+    // from is the sender wallet address. It has to be in this vault.
+    string from = 1;
+    repeated BatchPaymentRecipient recipients = 2;
+}
+
+message CreateBatchPaymentRequest {
+    // name is the name of the batch payment.
+    string name = 1;
+    // notes is the transaction notes for the batch payment.
+    google.protobuf.StringValue notes = 2;
+    oneof type {
+        EVMBatchSendNative evm_batch_send_native = 3;
+        EVMBatchSendERC20 evm_batch_send_erc20 = 4;
+        BTCBatchSendNative btc_batch_send_native = 5;
+    }
+}
+
+message CreateBatchPaymentResponse {
+    BatchPayment batch_payment = 1;
+    Error error = 2;
+}
+
+message GetBatchPaymentDetailsRequest {
+    string uuid = 1;
+}
+
+message GetBatchPaymentDetailsResponse {
+    BatchPayment batch_payment = 1;
+    Error error = 2;
+}
+
+message BatchPayment {
+    enum Status {
+        STATUS_UNSPECIFIED = 0;
+        STATUS_PENDING = 1;
+        STATUS_SUCCEEDED = 2;
+        STATUS_FAILED = 3;
+    }
+    // uuid is the unique identifier of the batch payment.
+    string uuid = 1;
+    // name is the name of the batch payment.
+    string name = 2;
+    // notes is the transaction notes for the batch payment.
+    string notes = 3;
+    // status is the status of the batch payment.
+    Status status = 4;
+    // failed_reason is the reason why the batch payment failed, only set if status is STATUS_FAILED.
+    string failed_reason = 5;
+    // creation_timestamp is the timestamp when the batch payment was created.
+    uint64 creation_timestamp = 6;
+    // approval_signing_request is the signing request that approves the tokens to be sent if needed.
+    SigningRequest approval_signing_request = 7;
+    // send_signing_request is the signing request that sends the batch payment.
+    SigningRequest send_signing_request = 8;
+    oneof type {
+        EVMBatchSendNative evm_batch_send_native = 9;
+        EVMBatchSendERC20 evm_batch_send_erc20 = 10;
+        BTCBatchSendNative btc_batch_send_native = 11;
+    }
+}

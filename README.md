@@ -51,6 +51,9 @@ Populate with:
 
 ### Run Script
 
+> [!IMPORTANT]  
+> You will need to have the envVar `INITIAL_OWNER` set so the deploy script knows who to assign ownership to, otherwise the script will instead use the deployer address.
+
 ```sh
 source .env
 forge script script/token.s.sol:TokenScript --broadcast --verify --rpc-url $FOUNDRY_ETH_RPC_URL --private-key $FOUNDRY_PRIVATE_KEY

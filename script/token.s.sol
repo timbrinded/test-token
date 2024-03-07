@@ -9,28 +9,24 @@ contract TokenScript is Script {
     function setUp() public {}
 
     function run() public {
+        address initialOwner = vm.envOr("INITIAL_OWNER", address(msg.sender));
         vm.startBroadcast();
 
         // Deploy the implementation contract
         stableToken implementation = new stableToken();
 
         // Prepare the initialization call data
-        string memory name = "MyStableToken";
-        string memory symbol = "MST";
+        string memory name = "Test GBP Stablecoin";
+        string memory symbol = "bGBP";
         bytes memory initData = abi.encodeWithSelector(
             stableToken.initialize.selector,
-            msg.sender, // initialOwner
+            address(initialOwner),
             name,
             symbol
         );
 
         // Deploy the proxy contract
         new ERC1967Proxy(address(implementation), initData);
-
-        // TODO: transfer ownership to multisig
-        // ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
-        // address multisig = 0x1234...
-        // proxy.transferOwnership(multisig);
         vm.stopBroadcast();
     }
 }
